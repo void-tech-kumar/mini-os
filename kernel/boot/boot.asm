@@ -6,27 +6,35 @@ KERNEL_OFFSET equ 0x1000
 start:
     cli
 
+    ; Save BIOS boot drive
     mov [boot_drive], dl
 
+    ; Initialize segments
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
     mov sp, 0x7C00
 
+    ; -------------------------
     ; Load kernel from disk
-    mov ah, 0x02
-    mov al, 0x01
-    mov ch, 0x00
-    mov cl, 0x02
-    mov dh, 0x00
+    ; -------------------------
+
+    mov ah, 0x02        ; BIOS read sectors
+    mov al, 0x01        ; Read 1 sector
+    mov ch, 0x00        ; Cylinder 0
+    mov cl, 0x02        ; Sector 2
+    mov dh, 0x00        ; Head 0
     mov dl, [boot_drive]
     mov bx, KERNEL_OFFSET
     int 0x13
 
     jc disk_error
 
-    ; Enter protected mode
+    ; -------------------------
+    ; Enter Protected Mode
+    ; -------------------------
+
     cli
 
     lgdt [gdt_descriptor]
@@ -37,49 +45,68 @@ start:
 
     jmp CODE_SEG:init_pm
 
+
+; -------------------------
+; Disk Error
+; -------------------------
+
 disk_error:
     mov si, error_message
 
 print_error:
     lodsb
+
     cmp al, 0
     je halt
 
     mov ah, 0x0E
+    mov bh, 0x00
     int 0x10
 
     jmp print_error
 
+
 halt:
     cli
-    hlt
-    jmp halt
 
+halt_loop:
+    hlt
+    jmp halt_loop
+
+
+; -------------------------
+; 32-bit Protected Mode
+; -------------------------
 
 bits 32
 
 init_pm:
+
     mov ax, DATA_SEG
+
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
 
+    ; Setup stack
     mov esp, 0x90000
 
     ; Jump to loaded kernel
-    call KERNEL_OFFSET
+    mov eax, KERNEL_OFFSET
+    call eax
 
+    ; Kernel should not return
     cli
 
-pm_halt:
+kernel_halt:
     hlt
-    jmp pm_halt
+    jmp kernel_halt
 
 
 ; -------------------------
-; GDT
+; Global Descriptor Table
 ; -------------------------
 
 gdt_start:
@@ -95,17 +122,28 @@ gdt_data:
 
 gdt_end:
 
+
 gdt_descriptor:
     dw gdt_end - gdt_start - 1
     dd gdt_start
 
+
 CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
+
+
+; -------------------------
+; Variables
+; -------------------------
 
 boot_drive db 0
 
 error_message db "Disk read error!", 0
 
+
+; -------------------------
+; Boot Signature
+; -------------------------
 
 times 510 - ($ - $$) db 0
 dw 0xAA55
