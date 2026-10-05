@@ -7,11 +7,13 @@ QEMU = qemu-system-x86_64
 BOOT_SRC = kernel/boot/boot.asm
 KERNEL_SRC = kernel/core/kernel.c
 PROCESS_SRC = kernel/process/process.c
+SCHEDULER_SRC = kernel/scheduler/scheduler.c
 LINKER = kernel/linker.ld
 
 BOOT_BIN = boot.bin
 KERNEL_OBJ = kernel.o
 PROCESS_OBJ = process.o
+SCHEDULER_OBJ = scheduler.o
 KERNEL_ELF = kernel.elf
 KERNEL_BIN = kernel.bin
 OS_IMAGE = os-image.bin
@@ -34,8 +36,11 @@ $(KERNEL_OBJ): $(KERNEL_SRC)
 $(PROCESS_OBJ): $(PROCESS_SRC)
 	$(CC) $(CFLAGS) -c $(PROCESS_SRC) -o $(PROCESS_OBJ)
 
-$(KERNEL_ELF): $(KERNEL_OBJ) $(PROCESS_OBJ) $(LINKER)
-	$(LD) $(LDFLAGS) -o $(KERNEL_ELF) $(KERNEL_OBJ) $(PROCESS_OBJ)
+$(SCHEDULER_OBJ): $(SCHEDULER_SRC)
+	$(CC) $(CFLAGS) -c $(SCHEDULER_SRC) -o $(SCHEDULER_OBJ)
+
+$(KERNEL_ELF): $(KERNEL_OBJ) $(PROCESS_OBJ) $(SCHEDULER_OBJ) $(LINKER)
+	$(LD) $(LDFLAGS) -o $(KERNEL_ELF) $(KERNEL_OBJ) $(PROCESS_OBJ) $(SCHEDULER_OBJ)
 
 $(KERNEL_BIN): $(KERNEL_ELF)
 	$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
@@ -49,4 +54,4 @@ run: build
 	$(QEMU) -drive format=raw,file=$(OS_IMAGE)
 
 clean:
-	rm -f $(BOOT_BIN) $(KERNEL_OBJ) $(PROCESS_OBJ) $(KERNEL_ELF) $(KERNEL_BIN) $(OS_IMAGE)
+	rm -f $(BOOT_BIN) $(KERNEL_OBJ) $(PROCESS_OBJ) $(SCHEDULER_OBJ) $(KERNEL_ELF) $(KERNEL_BIN) $(OS_IMAGE)

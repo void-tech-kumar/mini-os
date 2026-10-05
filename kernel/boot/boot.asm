@@ -28,7 +28,7 @@ start:
     ;
 
     mov ah, 0x02        ; BIOS read sectors
-    mov al, 0x02        ; Read 2 sectors
+    mov al, 0x03        ; Read 3 sectors
     mov ch, 0x00        ; Cylinder 0
     mov cl, 0x02        ; Start from sector 2
     mov dh, 0x00        ; Head 0
