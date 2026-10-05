@@ -1,0 +1,14 @@
+# Build artifacts
+*.o
+*.elf
+*.bin
+
+# OS disk images
+os-image.bin
+
+# Temporary files
+*.tmp
+*.log
+
+# Editor files
+*~
