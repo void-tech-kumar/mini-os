@@ -9,31 +9,38 @@ start:
     ; Save BIOS boot drive
     mov [boot_drive], dl
 
-    ; Initialize segments
+    ; Initialize real-mode segments
     xor ax, ax
     mov ds, ax
     mov es, ax
     mov ss, ax
     mov sp, 0x7C00
 
-    ; -------------------------
+    ; --------------------------------
     ; Load kernel from disk
-    ; -------------------------
+    ; --------------------------------
+    ;
+    ; Bootloader = sector 1
+    ; Kernel     = sector 2 and 3
+    ;
+    ; Current kernel size = 804 bytes
+    ; Therefore 2 sectors are required.
+    ;
 
     mov ah, 0x02        ; BIOS read sectors
-    mov al, 0x01        ; Read 1 sector
+    mov al, 0x02        ; Read 2 sectors
     mov ch, 0x00        ; Cylinder 0
-    mov cl, 0x02        ; Sector 2
+    mov cl, 0x02        ; Start from sector 2
     mov dh, 0x00        ; Head 0
     mov dl, [boot_drive]
     mov bx, KERNEL_OFFSET
+
     int 0x13
 
-    jc disk_error
-
-    ; -------------------------
+     jc disk_error
+    ; --------------------------------
     ; Enter Protected Mode
-    ; -------------------------
+    ; --------------------------------
 
     cli
 
@@ -43,12 +50,13 @@ start:
     or eax, 0x01
     mov cr0, eax
 
+    ; Far jump to flush CPU pipeline
     jmp CODE_SEG:init_pm
 
 
-; -------------------------
+; --------------------------------
 ; Disk Error
-; -------------------------
+; --------------------------------
 
 disk_error:
     mov si, error_message
@@ -74,14 +82,15 @@ halt_loop:
     jmp halt_loop
 
 
-; -------------------------
+; --------------------------------
 ; 32-bit Protected Mode
-; -------------------------
+; --------------------------------
 
 bits 32
 
 init_pm:
 
+    ; Load data segment
     mov ax, DATA_SEG
 
     mov ds, ax
@@ -90,14 +99,17 @@ init_pm:
     mov gs, ax
     mov ss, ax
 
-    ; Setup stack
+    ; Setup kernel stack
     mov esp, 0x90000
 
+    ; --------------------------------
     ; Jump to loaded kernel
+    ; --------------------------------
+
     mov eax, KERNEL_OFFSET
     call eax
 
-    ; Kernel should not return
+    ; Kernel should never return
     cli
 
 kernel_halt:
@@ -105,9 +117,9 @@ kernel_halt:
     jmp kernel_halt
 
 
-; -------------------------
+; --------------------------------
 ; Global Descriptor Table
-; -------------------------
+; --------------------------------
 
 gdt_start:
 
@@ -132,18 +144,20 @@ CODE_SEG equ gdt_code - gdt_start
 DATA_SEG equ gdt_data - gdt_start
 
 
-; -------------------------
+; --------------------------------
 ; Variables
-; -------------------------
+; --------------------------------
 
 boot_drive db 0
 
 error_message db "Disk read error!", 0
 
 
-; -------------------------
-; Boot Signature
-; -------------------------
+; --------------------------------
+; Boot Sector Padding
+; --------------------------------
 
 times 510 - ($ - $$) db 0
+
+; Boot signature
 dw 0xAA55
